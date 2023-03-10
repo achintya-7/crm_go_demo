@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/gofiber/fiber v1.14.6
 	github.com/jinzhu/gorm v1.9.16
+	go.uber.org/zap v1.24.0
 )
 
 require (
@@ -19,5 +20,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.16.0 // indirect
 	github.com/valyala/tcplisten v0.0.0-20161114210144-ceec8f93295a // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980 // indirect
 )

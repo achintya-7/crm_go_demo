@@ -1,38 +1,81 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 
-	"github.com/achintya-7/crm-go-basic/database"
-	"github.com/achintya-7/crm-go-basic/lead"
-	"github.com/gofiber/fiber"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-// app is a referring to the fiber package
-func setupRoutes(app *fiber.App) {
-	app.Get("/api/v1/lead", lead.GetLeads)
-	app.Get("/api/v1/lead/:id", lead.GetLead)
-	app.Post("/api/v1/lead", lead.NewLead)
-	app.Delete("/api/v1/lead/:id", lead.DeleteLead)
-}
-
-func initDatabase ()  {
-	var err error
-	database.DBConn, err = gorm.Open("sqlite3", "leads.db")
-	if err != nil {
-		panic("Failed to connect Database")
-	}
-	fmt.Println("Connection open to Database")
-	database.DBConn.AutoMigrate(&lead.Lead{})
-	fmt.Println("Database Migrated")
-}
-
 func main() {
-	app := fiber.New()
-	initDatabase()
-	setupRoutes(app)
-	app.Listen(2205)
-	defer database.DBConn.Close() // * this line will happen at the end of the function {defer}
+	logConf := zap.NewDevelopmentConfig()
+	logConf.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	logger, err := logConf.Build()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Sync() // flushes buffer, if any
+
+	confLogPath := "test"
+
+	if confLogPath != "" {
+		logPath := fmt.Sprintf("%s.log", confLogPath)
+		logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+		if err != nil {
+			logger.Error("failed to create log file", zap.Error(err))
+		}
+		defer logFile.Close()
+
+		fileSyncer := zapcore.AddSync(logFile)
+
+		core := zapcore.NewCore(
+			zapcore.NewConsoleEncoder(logConf.EncoderConfig),
+			fileSyncer,
+			logConf.Level,
+		)
+
+		logger = zap.New(core)
+
+		seprator := "---------"
+
+		scanner := bufio.NewScanner(logFile)
+		var lines []string
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+
+		sepIndex := -1
+		for i, line := range lines {
+			if line == seprator {
+				sepIndex = i
+			}
+		}
+
+		var newLines []string
+		if sepIndex != -1 && sepIndex < len(lines)-1 {
+			newLines = lines[sepIndex+1:]
+		}
+
+		if err = os.Truncate(logPath, 0); err != nil {
+			panic(err)
+		}
+
+		writer := bufio.NewWriter(logFile)
+		for _, line := range newLines {
+			_, err := writer.WriteString(line + "\n")
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+
+		writer.WriteString(seprator + "\n")
+
+		writer.Flush()
+
+	}
+
+	logger.Info("Hello")
+	logger.Info("Bye")
 }
